@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Change_AmsNetId" Id="{de9ab63b-178d-4d92-9421-a6c2c2bdb504}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Change_AmsNetId
+VAR_IN_OUT
+	modules : ST_IPCDiag_ModuleList;
+END_VAR
+VAR_INPUT
+	amsNetId : STRING;
+	bExec 	 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;
+	bError		: BOOL;
+	mdp_error	: ST_MDP_Error;
+	nErrId		: HRESULT;
+	//errMsg		: Tc3_IPCDiag.I_TcMessage;
+END_VAR
+VAR
+	state 			: INT := 0;
+	eErrorState 	: INT;
+	i 				: UINT;
+	modId 			: INT := -1;
+	mdpIdx			: WORD;
+	mdp_status		: BYTE;
+	bExecFlank		: BOOL;
+	fbWriteParam	: FB_IPCDiag_WriteParameterByMdpIdx;
+	//fbReadParam		: FB_IPCDiag_ReadParameterByMdpIdx;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bExec AND bExecFlank THEN
+		bExecFlank := FALSE;
+END_IF
+
+
+
+CASE state OF
+
+0: // Idle
+	bBusy := FALSE;
+	// steigende flanke
+	IF bExec AND NOT bExecFlank THEN
+		bExecFlank := TRUE;
+		state := 1;
+		bBusy := TRUE;
+	END_IF
+1: // find module
+	
+	// Find Module Idx of File System Object
+	WHILE i <= modules.nModules OR modId = - 1 DO
+		IF modules.aModules[i].eModType = E_IPCDiag_ModuleType.TwinCAT THEN // File System Object
+			modId := modules.aModules[i].nModId;
+		END_IF
+		i := i + 1;
+	END_WHILE
+	state := 2;
+	
+2: // Execute delete folder
+	mdpIdx := 16#8001 + DINT_TO_WORD(SHL(modId, 4));
+	
+	fbWriteParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx,
+		nFlags:= 0, //  
+		nSubIndex:= 4, // Ams Net Id
+		pBuffer:= ADR(amsNetId), 
+		nBufferSize:= INT_TO_UINT(LEN(amsNetId)),
+	);
+		
+	IF NOT fbWriteParam.bBusy THEN
+		IF fbWriteParam.bError THEN
+			bError 	:= TRUE;
+			nErrId	:= fbWriteParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := 99;
+		ELSE
+			bError 	:= FALSE;
+			state := 0;
+		END_IF
+		fbWriteParam(bExecute:=FALSE);
+	END_IF
+	
+	
+9: // Error state
+	;
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Change_AmsNetId">
+      <LineId Id="36" Count="28" />
+      <LineId Id="69" Count="7" />
+      <LineId Id="78" Count="15" />
+      <LineId Id="149" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

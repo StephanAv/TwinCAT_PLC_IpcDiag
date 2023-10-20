@@ -1,0 +1,126 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ReadBiosInfo" Id="{1f5af88f-09a0-46dc-aab2-f2a58a06b940}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ReadBiosInfo
+VAR_IN_OUT
+	modules : ST_IPCDiag_ModuleList;
+END_VAR
+VAR_INPUT
+	bExec 	 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;
+	bError		: BOOL;
+	mdp_error	: ST_MDP_Error;
+	nErrId		: HRESULT;
+END_VAR
+VAR
+	state 			: INT := 0;
+	eErrorState 	: INT;
+	i 				: UINT;
+	modId 			: INT := -1;
+	mdpIdx			: WORD;
+	mdp_status		: BYTE;
+	bExecFlank		: BOOL;
+	fbWriteParam	: FB_IPCDiag_WriteParameterByMdpIdx;
+	fbReadParam		: FB_IPCDiag_ReadParameterByMdpIdx;
+	
+	bios_major		: USINT;
+	bios_minor 		: USINT; 
+	n_bytesRead		: UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bExec AND bExecFlank THEN
+		bExecFlank := FALSE;
+END_IF
+
+
+
+CASE state OF
+
+0: // Idle
+	bBusy := FALSE;
+	// steigende flanke
+	IF bExec AND NOT bExecFlank THEN
+		bExecFlank := TRUE;
+		state := 1;
+		bBusy := TRUE;
+	END_IF
+1: // find module
+	
+	// Find Module Idx of File System Object
+	WHILE i <= modules.nModules OR modId = - 1 DO
+		IF modules.aModules[i].eModType = E_IPCDiag_ModuleType.Mainboard THEN // File System Object
+			modId := modules.aModules[i].nModId;
+		END_IF
+		i := i + 1;
+	END_WHILE
+	state := 2;
+	
+2: // Bios Major
+	mdpIdx := 16#8002 + DINT_TO_WORD(SHL(modId, 4));
+	
+
+	fbReadParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx, 
+		nFlags:= 0, 
+		nSubIndex:= 2, // Bios Major
+		pBuffer:= ADR(bios_major), 
+		nBufferSize:= SIZEOF(bios_major),  
+		nCount=> n_bytesRead);
+	IF NOT fbReadParam.bBusy THEN
+		IF fbReadParam.bError THEN
+			bError 	:= TRUE;
+			nErrId	:= fbReadParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := 99;
+		ELSE
+			bError 	:= FALSE;
+			state := 3;
+		END_IF
+		fbReadParam(bExecute:=FALSE);
+	END_IF
+
+3: // Bios Minor
+
+	fbReadParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx, 
+		nFlags:= 0, 
+		nSubIndex:= 3, // Bios Minor
+		pBuffer:= ADR(bios_minor), 
+		nBufferSize:= SIZEOF(bios_minor),  
+		nCount=> n_bytesRead);
+	IF NOT fbReadParam.bBusy THEN
+		IF fbReadParam.bError THEN
+			bError 	:= TRUE;
+			nErrId	:= fbReadParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := 99;
+		ELSE
+			bError 	:= FALSE;
+			state := 0;
+		END_IF
+		fbReadParam(bExecute:=FALSE);
+	END_IF
+9: // Error state
+	;
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ReadBiosInfo">
+      <LineId Id="35" Count="29" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="92" Count="6" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="74" Count="12" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="112" Count="20" />
+      <LineId Id="88" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

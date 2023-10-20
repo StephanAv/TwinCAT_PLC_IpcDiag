@@ -1,0 +1,165 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{ebf68f6f-cb24-4b94-876b-484c15003446}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	
+	//sNetId			: T_AmsNetID := '5.69.55.236.1.1';
+	fb_file_delete	: FB_IPC_DeleteFile;
+	fb_change_ip	: FB_Change_IP;
+	fb_setAmsNetUd  : FB_Change_AmsNetId;
+	fb_readBios		: FB_ReadBiosInfo;
+	fbDiagRegister  : FB_IPCDiag_Register; // := (sNetId:=sNetId);
+	moduleList		: ST_IPCDiag_ModuleList;
+	eState			: E_State := E_State.Init;
+	eErrorState 	: E_State;
+	hrGetValue		: HRESULT;	
+	
+	modId			: INT := -1; // 0 is a valid value
+	mdpIdx			: WORD;
+	i				: UINT;
+	test : ST_IPCDiag_Module;
+	fileName		: STRING := 'C:\test';
+	
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE eState OF
+	
+E_State.Init: 
+	
+	IF NOT fbDiagRegister.bBusy THEN
+		fbDiagRegister(bExecute:=TRUE,); // need to be executed once
+	ELSE
+		fbDiagRegister(bExecute:=FALSE);
+	END_IF
+	
+	IF NOT fbDiagRegister.bBusy THEN
+		IF fbDiagRegister.bError THEN
+			eErrorState := eState;
+			eState := E_State.Error;
+		ELSE
+			//eState := E_State.DeleteFolderExec;
+			//eState := E_State.Write_IPAddr;
+			//eState := E_State.SetAmsNetId;
+			eState := E_State.ReadBios;
+			moduleList := fbDiagRegister.stModuleList;
+		END_IF
+	END_IF
+	
+
+E_State.Idle:
+	;	
+	
+	
+	
+E_State.DeleteFolder:
+	fb_file_delete(
+		modules:= moduleList, 
+		filename:= fileName, 
+		bExec:= TRUE
+		);
+	IF NOT fb_file_delete.bBusy THEN
+		IF fb_file_delete.bError THEN
+			eErrorState := eState;
+			eState := E_State.Error;
+		ELSE
+			eErrorState := E_State.Idle;
+		END_IF
+		fb_file_delete(modules:= moduleList, bExec:=FALSE);
+	END_IF
+	
+E_State.Write_IPAddr:
+	
+	fb_change_ip(
+		modules:= moduleList, 
+		ipAddr:= '192.168.1.1', 
+		bExec:= TRUE
+		);
+	IF NOT fb_change_ip.bBusy THEN
+		IF fb_change_ip.bError THEN
+			eErrorState := eState;
+			eState := E_State.Error;
+		ELSE
+			eErrorState := E_State.Idle;
+		END_IF
+		fb_change_ip(modules:= moduleList, bExec:=FALSE);
+	END_IF
+	
+E_State.SetAmsNetId:
+	fb_setAmsNetUd(
+		modules:=moduleList, 
+		amsNetId:= '5.80.201.232.1.1', 
+		bExec:= TRUE, 
+	 );
+	 IF NOT fb_setAmsNetUd.bBusy THEN
+		IF fb_setAmsNetUd.bError THEN
+			eErrorState := eState;
+			eState := E_State.Error;
+		ELSE
+			eState := E_State.Idle;
+		END_IF
+		fb_setAmsNetUd(modules:= moduleList, bExec:=FALSE);
+	END_IF
+	;
+
+E_State.ReadBios:
+	fb_readBios(
+		modules:=moduleList, 
+		bExec:= TRUE 
+	);
+	IF NOT fb_readBios.bBusy THEN
+		IF fb_readBios.bError THEN
+			eErrorState := eState;
+			eState := E_State.Error;
+		ELSE
+			eState := E_State.Idle;
+		END_IF
+		fb_readBios(modules:= moduleList, bExec:=FALSE);
+	END_IF
+E_State.Error:
+	;
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="265" Count="15" />
+      <LineId Id="491" Count="0" />
+      <LineId Id="534" Count="0" />
+      <LineId Id="578" Count="0" />
+      <LineId Id="281" Count="6" />
+      <LineId Id="427" Count="1" />
+      <LineId Id="288" Count="0" />
+      <LineId Id="403" Count="0" />
+      <LineId Id="430" Count="3" />
+      <LineId Id="438" Count="0" />
+      <LineId Id="440" Count="1" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="452" Count="0" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="449" Count="2" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="473" Count="1" />
+      <LineId Id="477" Count="0" />
+      <LineId Id="490" Count="0" />
+      <LineId Id="478" Count="11" />
+      <LineId Id="475" Count="0" />
+      <LineId Id="404" Count="0" />
+      <LineId Id="513" Count="0" />
+      <LineId Id="517" Count="3" />
+      <LineId Id="524" Count="0" />
+      <LineId Id="526" Count="7" />
+      <LineId Id="525" Count="0" />
+      <LineId Id="514" Count="0" />
+      <LineId Id="558" Count="0" />
+      <LineId Id="557" Count="0" />
+      <LineId Id="561" Count="0" />
+      <LineId Id="567" Count="0" />
+      <LineId Id="566" Count="0" />
+      <LineId Id="569" Count="8" />
+      <LineId Id="374" Count="2" />
+      <LineId Id="58" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

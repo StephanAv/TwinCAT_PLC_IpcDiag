@@ -1,0 +1,199 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="FB_IPC_DeleteFile" Id="{67787862-8b65-45b7-badd-6fe4971ca58a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_IPC_DeleteFile
+VAR_IN_OUT
+	modules : ST_IPCDiag_ModuleList;
+END_VAR
+VAR_INPUT
+	filename : STRING;
+	bExec 	 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;
+	bError		: BOOL;
+	mdp_error	: ST_MDP_Error;
+	nErrId		: HRESULT;
+	//errMsg		: Tc3_IPCDiag.I_TcMessage;
+END_VAR
+VAR
+	state 			: INT := 0;
+	eErrorState 	: INT;
+	i 				: UINT;
+	modId 			: INT := -1;
+	mdpIdx			: WORD;
+	mdp_status		: BYTE;
+	bExecFlank		: BOOL;
+	st_del_file		: ST_ServiceTransfer_DeleteFile;
+	fbWriteParam	: FB_IPCDiag_WriteParameterByMdpIdx;
+	fbReadParam		: FB_IPCDiag_ReadParameterByMdpIdx;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bExec AND bExecFlank THEN
+		bExecFlank := FALSE;
+END_IF
+
+
+
+CASE state OF
+
+0: // Idle
+	bBusy := FALSE;
+	// steigende flanke
+	IF bExec AND NOT bExecFlank THEN
+		bExecFlank := TRUE;
+		state := 1;
+		bBusy := TRUE;
+	END_IF
+1: // find module
+	
+	// Find Module Idx of File System Object
+	WHILE i <= modules.nModules OR modId = - 1 DO
+		IF modules.aModules[i].eModType = E_IPCDiag_ModuleType.FileSystemObject THEN // File System Object
+			modId := modules.aModules[i].nModId;
+		END_IF
+		i := i + 1;
+	END_WHILE
+	state := 2;
+	
+2: // Execute delete folder
+	mdpIdx := 16#B004 + DINT_TO_WORD(SHL(modId, 4));
+	
+	st_del_file.cbFileName := INT_TO_DWORD(LEN(fileName)) ;
+	st_del_file.bRecursive := BOOL_TO_DWORD(FALSE);
+	st_del_file.s_filename := filename;
+	
+	fbWriteParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx,
+		nFlags:= 0, //  
+		nSubIndex:= 1, // Trigger / Write 
+		pBuffer:= ADR(st_del_file), 
+		nBufferSize:= INT_TO_DWORD(LEN(fileName)) + SIZEOF(st_del_file.bRecursive) + SIZEOF(st_del_file.cbFileName),
+		sNetId := modules.sNetId
+	);
+		
+	IF NOT fbWriteParam.bBusy THEN
+		IF fbWriteParam.bError THEN
+			bError 	:= TRUE;
+			nErrId	:= fbWriteParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := 99;
+		ELSE
+			bError 	:= FALSE;
+			state := 3;
+		END_IF
+		fbWriteParam(bExecute:=FALSE);
+	END_IF
+	
+3: // Get state of operation
+
+	fbReadParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx, 
+		nFlags:= 0, 
+		nSubIndex:= 2, 
+		pBuffer:= ADR(mdp_status), 
+		nBufferSize:= SIZEOF(mdp_status),
+		sNetId := modules.sNetId
+	);
+	IF NOT fbReadParam.bBusy THEN
+		IF fbReadParam.bError THEN
+			bError 	:= TRUE;
+			nErrId	:= fbWriteParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := E_State.Error;
+		ELSE
+			
+			IF mdp_status = 3 THEN
+				bError 	:= TRUE;
+				state := 4;
+			ELSE
+				bError 	:= FALSE;
+				bBusy := FALSE;
+				state := 0;
+			END_IF
+		END_IF
+		fbReadParam(bExecute:=FALSE);
+	END_IF
+
+4: // Get error code of operation
+
+	fbReadParam(
+		bExecute:= TRUE, 
+		nIndex:= mdpIdx, 
+		nFlags:= 0, 
+		nSubIndex:= 3, 
+		pBuffer:= ADR(mdp_error), 
+		nBufferSize:= SIZEOF(mdp_error), 
+		sNetId := modules.sNetId
+	);
+	IF NOT fbReadParam.bBusy THEN
+			bError 	:= TRUE;
+		IF fbReadParam.bError THEN
+			nErrId	:= fbWriteParam.hrErrorCode;
+			//errMsg	: fbWriteParam.ipErrorMessage;
+			eErrorState := state;
+			state := 99;
+		ELSE
+			state := 0;
+		END_IF
+		fbReadParam(bExecute:=FALSE);
+	END_IF
+	
+9: // Error state
+	;
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_IPC_DeleteFile">
+      <LineId Id="193" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="194" Count="2" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="115" Count="1" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="197" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="14" Count="22" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="37" Count="3" />
+      <LineId Id="146" Count="1" />
+      <LineId Id="149" Count="0" />
+      <LineId Id="41" Count="2" />
+      <LineId Id="150" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="46" Count="12" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="59" Count="2" />
+      <LineId Id="152" Count="1" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="62" Count="2" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="66" Count="1" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="68" Count="14" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="83" Count="1" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="86" Count="5" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="112" Count="2" />
+      <LineId Id="105" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.9">
+  <DUT Name="stIPCDiag" Id="{9e1487a9-f4bd-4570-a2fe-0a16610c5ff1}">
+    <Declaration><![CDATA[TYPE stIPCDiag :
+	
+STRUCT
+	//Read Once---------------------------------------------------------------------------
+	sIPCDeviceName		: STRING(39);
+	sIPCSerialNumber: STRING;
+	
+	nCpuFreq		: UDINT;
+	nCpuUsage		: UINT;
+	
+	nTcBuild		: UINT;
+	sTC_Version		: STRING;
+	
+	aNIC_Name		: ARRAY[1..IpcDiagnostics.cMaxNumberList] OF STRING(79);	// array in order to receive info of up to three network ports (NICs)
+	aNIC_IPv4Address: ARRAY[1..IpcDiagnostics.cMaxNumberList] OF STRING(39);	// array in order to receive info of up to three network ports (NICs)
+	aNIC_DHCP		: ARRAY[1..IpcDiagnostics.cMaxNumberList] OF BOOL;		// array in order to receive info of up to three network ports (NICs)
+	nNIC_ModuleCnt	: UINT;
+	
+	nMassStg_NoDrives			:UINT;	
+	aMassStg_DriveList_DriveName:ARRAY[1..IpcDiagnostics.cMaxNumberList] OF STRING(79);
+ 
+	sMdpVersion		: STRING;
+	nBootCnt		: UDINT;
+	
+	//Periodische Daten--------------------------------------------------------------------
+	nCpuTemperature	: INT;							// [°C]; should be read periodically	
+	
+END_STRUCT
+
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
