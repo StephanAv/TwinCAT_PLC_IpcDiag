@@ -2,7 +2,7 @@
 # website: https://www.beckhoff.com/twincat3/
 #
 # Recommended: VisualStudio.gitignore
-
+.vs/
 # TwinCAT files
 *.tpy
 *.tclrs
